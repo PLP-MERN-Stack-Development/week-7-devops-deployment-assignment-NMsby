@@ -76,3 +76,28 @@ Your work will be automatically submitted when you push to your GitHub Classroom
 - [Railway Documentation](https://docs.railway.app/)
 - [Vercel Documentation](https://vercel.com/docs)
 - [Netlify Documentation](https://docs.netlify.com/) 
+
+## Create MongoDB Atlas Account & Cluster:
+
+1. **Visit [MongoDB Atlas](https://cloud.mongodb.com/)**
+2. **Register a new account** with a strong email/password
+3. **Create New Project:**
+    - Project Name: `mern-deployment-project`
+    - Add collaborators if needed
+4. **Create Free Cluster (M0):**
+    - Cloud Provider: **AWS** (recommended for free tier)
+    - Region: **US East (N. Virginia)** or closest to your location
+    - Cluster Name: `mern-cluster`
+    - MongoDB Version: **8.0** (latest)
+
+### **Configure Security Settings:**
+
+1. **Database Access:**
+    - Username: `mern-app-user`
+    - Password: Generate a **32-character secure password**
+    - Database User Privileges: **Read and write to any database**
+    - **Copy this password** - you'll need it shortly
+
+2. **Network Access:**
+    - **Add IP Address**: `0.0.0.0/0` (Allow access from anywhere - for development)
+    - **⚠️ Security Note**: In production, restrict to specific IPs only
