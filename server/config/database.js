@@ -72,13 +72,13 @@ class Database {
             logger.info('Attempting to connect to MongoDB Atlas...');
             logger.info(`Connection string format: ${this.mongoUri.replace(/\/\/.*@/, '//***:***@')}`);
 
-            // Connection options optimized for Atlas
+            // Updated connection options for Mongoose 8.17.1 and MongoDB 6.18.0
             const options = {
                 maxPoolSize: 10, // Maintain up to 10 socket connections
-                serverSelectionTimeoutMS: 10000, // Increased timeout for Atlas
+                serverSelectionTimeoutMS: 10000, // Keep trying to send operations for 10 seconds
                 socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-                bufferMaxEntries: 0, // Disable mongoose buffering
-                bufferCommands: false, // Disable mongoose buffering
+                // Removed deprecated options:
+                // bufferMaxEntries and bufferCommands are no longer supported
             };
 
             await mongoose.connect(this.mongoUri, options);
