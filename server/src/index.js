@@ -4,17 +4,35 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import Database from '../config/database.js';
 
-// Load environment variables
-dotenv.config();
+// Get the directory name of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from the correct path
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Initialize database connection
-Database.setupEventListeners();
-await Database.connect();
+// Initialize database connection with proper error handling
+async function initializeDatabase() {
+    try {
+        Database.setupEventListeners();
+        await Database.connect();
+        console.log('Database initialized successfully');
+    } catch (error) {
+        console.error('Database initialization failed:', error.message);
+        console.error('Please check your MongoDB Atlas configuration and try again');
+        process.exit(1);
+    }
+}
+
+// Initialize database
+await initializeDatabase();
 
 // Security middleware
 app.use(helmet({
@@ -95,9 +113,9 @@ app.use('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Health check: http://localhost:${PORT}/api/health`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 export default app;
