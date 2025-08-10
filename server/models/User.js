@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
     username: {
         type: String,
         required: [true, 'Username is required'],
-        unique: true,
+        unique: true, // This creates an index automatically
         trim: true,
         minlength: [3, 'Username must be at least 3 characters long'],
         maxlength: [30, 'Username cannot exceed 30 characters'],
@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: [true, 'Email is required'],
-        unique: true,
+        unique: true, // This creates an index automatically
         trim: true,
         lowercase: true,
         match: [
@@ -80,9 +80,8 @@ const userSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
-// Indexes for performance
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
+// Only create indexes for fields that DON'T have unique: true
+// Removed: email and username indexes (they're created by unique: true)
 userSchema.index({ emailVerificationToken: 1 });
 userSchema.index({ passwordResetToken: 1 });
 
