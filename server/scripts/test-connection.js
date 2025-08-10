@@ -1,15 +1,17 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Database from '../config/database.js';
-import { User } from '../models/index.js';
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from the correct path
+// CRITICAL: Load environment variables FIRST before importing Database
 dotenv.config({ path: path.join(__dirname, '../.env') });
+
+// Now import Database after environment variables are loaded
+import Database from '../config/database.js';
+import { User } from '../models/index.js';
 
 async function testDatabaseConnection() {
     try {

@@ -1,19 +1,21 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
 import dotenv from 'dotenv';
-import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Database from '../config/database.js';
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from the correct path
+// CRITICAL: Load environment variables FIRST before any other imports
 dotenv.config({ path: path.join(__dirname, '../.env') });
+
+// Now import everything else after environment variables are loaded
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+import Database from '../config/database.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,9 +25,9 @@ async function initializeDatabase() {
     try {
         Database.setupEventListeners();
         await Database.connect();
-        console.log('Database initialized successfully');
+        console.log('✅ Database initialized successfully');
     } catch (error) {
-        console.error('Database initialization failed:', error.message);
+        console.error('❌ Database initialization failed:', error.message);
         console.error('Please check your MongoDB Atlas configuration and try again');
         process.exit(1);
     }

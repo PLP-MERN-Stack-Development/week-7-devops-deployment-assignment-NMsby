@@ -38,18 +38,32 @@ const logger = winston.createLogger({
 
 class Database {
     constructor() {
-        this.mongoUri = process.env.MONGODB_URI;
+        this.mongoUri = null;
         this.isConnected = false;
+        this.initialized = false;
+    }
+
+    // Initialize method to validate environment after dotenv is loaded
+    initialize() {
+        if (this.initialized) return;
+
+        this.mongoUri = process.env.MONGODB_URI;
 
         // Validate environment variable
         if (!this.mongoUri) {
             logger.error('MONGODB_URI environment variable is not set');
             throw new Error('MONGODB_URI environment variable is required');
         }
+
+        this.initialized = true;
+        logger.info('Database configuration initialized');
     }
 
     async connect() {
         try {
+            // Ensure database is initialized
+            this.initialize();
+
             if (this.isConnected) {
                 logger.info('MongoDB already connected');
                 return;
@@ -137,4 +151,5 @@ class Database {
     }
 }
 
+// Export a single instance but DON'T initialize it yet
 export default new Database();
