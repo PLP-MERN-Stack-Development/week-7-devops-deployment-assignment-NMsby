@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../utils/api.js';
 
 export function useApi(endpoint, options = {}) {
@@ -13,12 +13,18 @@ export function useApi(endpoint, options = {}) {
         ...requestOptions
     } = options;
 
+    // Memoize the request options to prevent unnecessary re-renders
+    const memoizedRequestOptions = useMemo(() => requestOptions, [
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        JSON.stringify(requestOptions)
+    ]);
+
     const execute = useCallback(async (customOptions = {}) => {
         setLoading(true);
         setError(null);
 
         try {
-            const mergedOptions = { ...requestOptions, ...customOptions };
+            const mergedOptions = { ...memoizedRequestOptions, ...customOptions };
             const result = await api.request(endpoint, {
                 method,
                 ...mergedOptions,
@@ -32,7 +38,7 @@ export function useApi(endpoint, options = {}) {
         } finally {
             setLoading(false);
         }
-    }, [endpoint, method, JSON.stringify(requestOptions), ...dependencies]); // Fix: stringify requestOptions
+    }, [endpoint, method, memoizedRequestOptions, ...dependencies]);
 
     useEffect(() => {
         if (immediate && method === 'GET') {
@@ -55,6 +61,12 @@ export function useMutation(endpoint, options = {}) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Memoize options to prevent unnecessary re-renders
+    const memoizedOptions = useMemo(() => options, [
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        JSON.stringify(options)
+    ]);
+
     const mutate = useCallback(async (data, customOptions = {}) => {
         setLoading(true);
         setError(null);
@@ -62,7 +74,7 @@ export function useMutation(endpoint, options = {}) {
         try {
             const result = await api.request(endpoint, {
                 method: 'POST',
-                ...options,
+                ...memoizedOptions,
                 ...customOptions,
                 body: data ? JSON.stringify(data) : null,
             });
@@ -74,7 +86,7 @@ export function useMutation(endpoint, options = {}) {
         } finally {
             setLoading(false);
         }
-    }, [endpoint, JSON.stringify(options)]); // Fix: stringify options
+    }, [endpoint, memoizedOptions]);
 
     return {
         mutate,

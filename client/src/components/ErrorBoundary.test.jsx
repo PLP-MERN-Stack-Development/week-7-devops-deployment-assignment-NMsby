@@ -1,11 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ErrorBoundary from './ErrorBoundary.jsx';
 
 // Test component that can throw errors conditionally
-const TestComponent = ({ shouldThrow = false, onRender = () => {} }) => {
-    onRender(); // Call the render callback
+const ThrowError = ({ shouldThrow = false }) => {
     if (shouldThrow) {
         throw new Error('Test error');
     }
@@ -16,7 +15,7 @@ describe('ErrorBoundary', () => {
     it('renders children when there is no error', () => {
         render(
             <ErrorBoundary>
-                <TestComponent />
+                <ThrowError />
             </ErrorBoundary>
         );
 
@@ -29,7 +28,7 @@ describe('ErrorBoundary', () => {
 
         render(
             <ErrorBoundary>
-                <TestComponent shouldThrow={true} />
+                <ThrowError shouldThrow={true} />
             </ErrorBoundary>
         );
 
@@ -39,48 +38,43 @@ describe('ErrorBoundary', () => {
         consoleSpy.mockRestore();
     });
 
-    it('allows resetting the error state', async () => {
+    it('resets error state when handleReset is called', async () => {
         const user = userEvent.setup();
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-        let shouldThrow = true;
-        let renderCount = 0;
-
-        const onRender = () => {
-            renderCount++;
-        };
-
-        const TestComponentWrapper = () => (
-            <TestComponent shouldThrow={shouldThrow} onRender={onRender} />
+        // Create a custom fallback to test the reset functionality
+        const customFallback = (error, resetErrorBoundary) => (
+            <div data-testid="custom-error">
+                <h2>Custom Error UI</h2>
+                <button onClick={resetErrorBoundary} data-testid="reset-button">
+                    Reset Error
+                </button>
+            </div>
         );
 
-        // Initial render with error
         const { rerender } = render(
-            <ErrorBoundary>
-                <TestComponentWrapper />
+            <ErrorBoundary fallback={customFallback}>
+                <ThrowError shouldThrow={true} />
             </ErrorBoundary>
         );
 
-        // Error state should be shown
-        expect(screen.getByText('🚨 Something went wrong')).toBeInTheDocument();
+        // Should show custom error UI
+        expect(screen.getByTestId('custom-error')).toBeInTheDocument();
+        expect(screen.getByText('Custom Error UI')).toBeInTheDocument();
 
-        // Click try again button
-        await act(async () => {
-            await user.click(screen.getByText('Try Again'));
-        });
+        // Click reset button
+        await user.click(screen.getByTestId('reset-button'));
 
-        // Change the error condition
-        shouldThrow = false;
-
-        // Force re-render after clicking try again
+        // Re-render with a component that doesn't throw
         rerender(
-            <ErrorBoundary>
-                <TestComponentWrapper />
+            <ErrorBoundary fallback={customFallback}>
+                <ThrowError shouldThrow={false} />
             </ErrorBoundary>
         );
 
-        // After reset, should show normal content
+        // Should now show the normal content
         expect(screen.getByText('No error')).toBeInTheDocument();
+        expect(screen.queryByTestId('custom-error')).not.toBeInTheDocument();
 
         consoleSpy.mockRestore();
     });
