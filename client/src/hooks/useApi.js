@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../utils/api.js';
 
 export function useApi(endpoint, options = {}) {
@@ -13,17 +13,12 @@ export function useApi(endpoint, options = {}) {
         ...requestOptions
     } = options;
 
-    // Memoize the request options to prevent unnecessary re-renders
-    const memoizedRequestOptions = useMemo(() => requestOptions, [
-        JSON.stringify(requestOptions) // eslint-disable-line react-hooks/exhaustive-deps
-    ]);
-
     const execute = useCallback(async (customOptions = {}) => {
         setLoading(true);
         setError(null);
 
         try {
-            const mergedOptions = { ...memoizedRequestOptions, ...customOptions };
+            const mergedOptions = { ...requestOptions, ...customOptions };
             const result = await api.request(endpoint, {
                 method,
                 ...mergedOptions,
@@ -37,7 +32,7 @@ export function useApi(endpoint, options = {}) {
         } finally {
             setLoading(false);
         }
-    }, [endpoint, method, memoizedRequestOptions, ...dependencies]);
+    }, [endpoint, method, JSON.stringify(requestOptions), ...dependencies]); // Fix: stringify requestOptions
 
     useEffect(() => {
         if (immediate && method === 'GET') {
@@ -79,7 +74,7 @@ export function useMutation(endpoint, options = {}) {
         } finally {
             setLoading(false);
         }
-    }, [endpoint, options]);
+    }, [endpoint, JSON.stringify(options)]); // Fix: stringify options
 
     return {
         mutate,

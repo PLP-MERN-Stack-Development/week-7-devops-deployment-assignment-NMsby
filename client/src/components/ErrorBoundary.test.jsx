@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ErrorBoundary from './ErrorBoundary.jsx';
 
-// Component that throws an error
-const ThrowError = ({ shouldThrow = false }) => {
+// Test component that can throw errors conditionally
+const TestComponent = ({ shouldThrow = false, onRender = () => {} }) => {
+    onRender(); // Call the render callback
     if (shouldThrow) {
         throw new Error('Test error');
     }
@@ -15,7 +16,7 @@ describe('ErrorBoundary', () => {
     it('renders children when there is no error', () => {
         render(
             <ErrorBoundary>
-                <ThrowError />
+                <TestComponent />
             </ErrorBoundary>
         );
 
@@ -28,7 +29,7 @@ describe('ErrorBoundary', () => {
 
         render(
             <ErrorBoundary>
-                <ThrowError shouldThrow={true} />
+                <TestComponent shouldThrow={true} />
             </ErrorBoundary>
         );
 
@@ -42,35 +43,43 @@ describe('ErrorBoundary', () => {
         const user = userEvent.setup();
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-        // Create a component that can toggle between error and no error
-        const ToggleErrorComponent = ({ showError }) => {
-            if (showError) {
-                throw new Error('Test error');
-            }
-            return <div>No error</div>;
+        let shouldThrow = true;
+        let renderCount = 0;
+
+        const onRender = () => {
+            renderCount++;
         };
+
+        const TestComponentWrapper = () => (
+            <TestComponent shouldThrow={shouldThrow} onRender={onRender} />
+        );
 
         // Initial render with error
         const { rerender } = render(
             <ErrorBoundary>
-                <ToggleErrorComponent showError={true} />
+                <TestComponentWrapper />
             </ErrorBoundary>
         );
 
         // Error state should be shown
         expect(screen.getByText('🚨 Something went wrong')).toBeInTheDocument();
 
-        // Click try again button to reset error boundary
-        await user.click(screen.getByText('Try Again'));
+        // Click try again button
+        await act(async () => {
+            await user.click(screen.getByText('Try Again'));
+        });
 
-        // Now re-render with no error - the error boundary should reset
+        // Change the error condition
+        shouldThrow = false;
+
+        // Force re-render after clicking try again
         rerender(
             <ErrorBoundary>
-                <ToggleErrorComponent showError={false} />
+                <TestComponentWrapper />
             </ErrorBoundary>
         );
 
-        // After clicking "Try Again" and re-rendering, we should see the normal content
+        // After reset, should show normal content
         expect(screen.getByText('No error')).toBeInTheDocument();
 
         consoleSpy.mockRestore();

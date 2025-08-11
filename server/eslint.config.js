@@ -28,8 +28,8 @@ export default [
         rules: {
             ...js.configs.recommended.rules,
 
-            // Node.js specific rules
-            'no-console': 'warn',
+            // Allow console in development, warn in production
+            'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'off',
             'no-unused-vars': ['error', {
                 argsIgnorePattern: '^_',
                 varsIgnorePattern: '^_'
@@ -48,7 +48,7 @@ export default [
         }
     },
 
-    // Configuration for test files
+    // Configuration for test files - allow console statements
     {
         files: ['**/__tests__/**/*.js', '**/*.test.js', '**/*.spec.js'],
         languageOptions: {
@@ -58,7 +58,7 @@ export default [
             }
         },
         rules: {
-            'no-console': 'off'
+            'no-console': 'off' // Allow console in tests
         }
     }
 ];
