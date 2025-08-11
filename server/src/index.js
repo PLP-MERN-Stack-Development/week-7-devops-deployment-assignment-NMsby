@@ -9,6 +9,10 @@ const __dirname = path.dirname(__filename);
 // CRITICAL: Load environment variables FIRST before any other imports
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+// Initialize Sentry BEFORE importing other modules
+import { initializeSentry } from '../config/sentry.js';
+initializeSentry();
+
 // Now import everything else after environment variables are loaded
 import express from 'express';
 import cors from 'cors';
@@ -16,9 +20,13 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import Database from '../config/database.js';
+import { setupSentryMiddleware, setupSentryErrorHandler, sentryErrorMiddleware } from '../middleware/sentry.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Setup Sentry request handling
+setupSentryMiddleware(app);
 
 // Initialize database connection with proper error handling
 async function initializeDatabase() {
@@ -77,7 +85,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/', (req, res) => {
     res.json({
         message: 'MERN Stack Server is running!',
-        version: '1.0.0',
+        version: process.env.APP_VERSION || '1.0.0',
         status: 'healthy',
         endpoints: {
             health: '/api/health',
@@ -90,7 +98,8 @@ app.get('/', (req, res) => {
 app.get('/api', (req, res) => {
     res.json({
         message: 'MERN Stack API is running!',
-        version: '1.0.0',
+        version: process.env.APP_VERSION || '1.0.0',
+        environment: process.env.NODE_ENV || 'development',
         database: Database.getConnectionStatus(),
         timestamp: new Date().toISOString()
     });
@@ -105,22 +114,41 @@ app.get('/api/health', (req, res) => {
         status: isHealthy ? 'healthy' : 'unhealthy',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development',
+        version: process.env.APP_VERSION || '1.0.0',
         database: {
             status: dbStatus,
             connected: isHealthy
         },
         uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        version: '1.0.0'
+        memory: process.memoryUsage()
     });
 });
+
+// Test error endpoint (development only)
+if (process.env.NODE_ENV === 'development') {
+    app.get('/api/test-error', (req, res, next) => {
+        const error = new Error('Test error for Sentry monitoring');
+        error.status = 500;
+        next(error);
+    });
+}
+
+// Custom error middleware (before Sentry error handler)
+app.use(sentryErrorMiddleware);
+
+// Sentry error handler (must be after all routes)
+setupSentryErrorHandler(app);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Error occurred:', err.stack);
+
+    const isDevelopment = process.env.NODE_ENV === 'development';
+
     res.status(500).json({
         message: 'Something went wrong!',
-        error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
+        error: isDevelopment ? err.message : 'Internal Server Error',
+        ...(isDevelopment && { stack: err.stack }),
         timestamp: new Date().toISOString()
     });
 });
@@ -140,6 +168,7 @@ app.listen(PORT, () => {
     console.log(`Health check: http://localhost:${PORT}/api/health`);
     console.log(`API endpoint: http://localhost:${PORT}/api`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Version: ${process.env.APP_VERSION || '1.0.0'}`);
     console.log(`Database: ${Database.getConnectionStatus()}`);
 });
 
