@@ -42,25 +42,35 @@ describe('ErrorBoundary', () => {
         const user = userEvent.setup();
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
+        // Create a component that can toggle between error and no error
+        const ToggleErrorComponent = ({ showError }) => {
+            if (showError) {
+                throw new Error('Test error');
+            }
+            return <div>No error</div>;
+        };
+
+        // Initial render with error
         const { rerender } = render(
             <ErrorBoundary>
-                <ThrowError shouldThrow={true} />
+                <ToggleErrorComponent showError={true} />
             </ErrorBoundary>
         );
 
         // Error state should be shown
         expect(screen.getByText('🚨 Something went wrong')).toBeInTheDocument();
 
-        // Click try again button
+        // Click try again button to reset error boundary
         await user.click(screen.getByText('Try Again'));
 
-        // Re-render with no error
+        // Now re-render with no error - the error boundary should reset
         rerender(
             <ErrorBoundary>
-                <ThrowError shouldThrow={false} />
+                <ToggleErrorComponent showError={false} />
             </ErrorBoundary>
         );
 
+        // After clicking "Try Again" and re-rendering, we should see the normal content
         expect(screen.getByText('No error')).toBeInTheDocument();
 
         consoleSpy.mockRestore();

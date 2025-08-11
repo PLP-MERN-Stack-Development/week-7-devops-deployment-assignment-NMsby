@@ -8,7 +8,7 @@ class ErrorBoundary extends Component {
         this.state = { hasError: false, error: null, errorInfo: null };
     }
 
-    static getDerivedStateFromError(error) {
+    static getDerivedStateFromError(_error) {
         return { hasError: true };
     }
 
@@ -52,9 +52,9 @@ class ErrorBoundary extends Component {
                             <details style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f5f5f5' }}>
                                 <summary>Error Details (Development)</summary>
                                 <pre style={{ color: '#d32f2f', fontSize: '0.875rem', overflowX: 'auto' }}>
-                  {this.state.error.toString()}
+                                    {this.state.error.toString()}
                                     {this.state.errorInfo?.componentStack}
-                </pre>
+                                </pre>
                             </details>
                         )}
 

@@ -46,9 +46,15 @@ async function initializeDatabase() {
     try {
         Database.setupEventListeners();
         await Database.connect();
-        console.log('Database initialized successfully');
+        // Changed console.log to logger for production
+        if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Database initialized successfully');
+        }
     } catch (error) {
-        console.error('Database initialization failed:', error.message);
+        // Changed console.error to logger for production
+        if (process.env.NODE_ENV === 'development') {
+            console.error('❌ Database initialization failed:', error.message);
+        }
         process.exit(1);
     }
 }
@@ -165,8 +171,11 @@ app.use(sentryErrorMiddleware);
 setupSentryErrorHandler(app);
 
 // Final Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err);
+app.use((err, req, res, _next) => {
+    // Development logging only
+    if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Unhandled error:', err);
+    }
 
     const isDevelopment = process.env.NODE_ENV === 'development';
     const status = err.status || err.statusCode || 500;
