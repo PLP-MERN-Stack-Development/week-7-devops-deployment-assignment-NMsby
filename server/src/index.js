@@ -18,9 +18,22 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 import Database from '../config/database.js';
 import { setupSentryMiddleware, setupSentryErrorHandler, sentryErrorMiddleware } from '../middleware/sentry.js';
+import {
+    apiRateLimit,
+    authRateLimit,
+    validateRequest,
+    securityHeaders,
+    requestId
+} from '../middleware/security.js';
+import {
+    responseTime,
+    memoryMonitor,
+    requestMonitor,
+    setupGracefulShutdown,
+    healthCheck
+} from '../middleware/performance.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,7 +49,6 @@ async function initializeDatabase() {
         console.log('Database initialized successfully');
     } catch (error) {
         console.error('Database initialization failed:', error.message);
-        console.error('Please check your MongoDB Atlas configuration and try again');
         process.exit(1);
     }
 }
@@ -44,7 +56,12 @@ async function initializeDatabase() {
 // Initialize database
 await initializeDatabase();
 
-// Security middleware
+// Trust proxy (important for rate limiting behind reverse proxy)
+app.set('trust proxy', 1);
+
+// Security middleware (order matters!)
+app.use(securityHeaders);
+app.use(requestId);
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -52,49 +69,71 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'"],
             scriptSrc: ["'self'"],
             imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", process.env.CLIENT_URL || 'http://localhost:5173'],
         },
     },
+    crossOriginEmbedderPolicy: false
 }));
 
+// CORS Configuration
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        const allowedOrigins = [
+            process.env.CLIENT_URL || 'http://localhost:5173',
+            'http://localhost:3000',    // Additional development origins
+            'http://localhost:4173'     // Vite preview
+        ];
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Performance monitoring
+app.use(responseTime);
+app.use(memoryMonitor);
+app.use(requestMonitor);
+
+// Request validation
+app.use(validateRequest);
+
+// Logging (only in production/staging)
+if (process.env.NODE_ENV !== 'development') {
+    app.use(morgan('combined'));
+} else {
+    app.use(morgan('dev'));
+}
+
+// Body parsing
+app.use(express.json({
+    limit: '10mb',
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
+app.use(express.urlencoded({
+    extended: true,
+    limit: '10mb'
 }));
 
 // Rate limiting - Apply to all API routes
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: {
-        error: 'Too many requests from this IP, please try again later.'
-    },
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
-app.use('/api', limiter);
+app.use('/api/auth', authRateLimit);    // Strict rate limiting for auth
+app.use('/api', apiRateLimit);          // General API rate limiting
 
-// Logging
-app.use(morgan('combined'));
+// Health check (before other routes)
+app.use(healthCheck);
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// Root route
-app.get('/', (req, res) => {
-    res.json({
-        message: 'MERN Stack Server is running!',
-        version: process.env.APP_VERSION || '1.0.0',
-        status: 'healthy',
-        endpoints: {
-            health: '/api/health',
-            api: '/api'
-        }
-    });
-});
-
-// Basic API route
+// API routes
 app.get('/api', (req, res) => {
     res.json({
         message: 'MERN Stack API is running!',
@@ -105,31 +144,17 @@ app.get('/api', (req, res) => {
     });
 });
 
-// Health check endpoint with database status
-app.get('/api/health', (req, res) => {
-    const dbStatus = Database.getConnectionStatus();
-    const isHealthy = Database.isHealthy();
-
-    res.status(isHealthy ? 200 : 503).json({
-        status: isHealthy ? 'healthy' : 'unhealthy',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development',
-        version: process.env.APP_VERSION || '1.0.0',
-        database: {
-            status: dbStatus,
-            connected: isHealthy
-        },
-        uptime: process.uptime(),
-        memory: process.memoryUsage()
-    });
-});
-
-// Test error endpoint (development only)
+// Test endpoints (development only)
 if (process.env.NODE_ENV === 'development') {
     app.get('/api/test-error', (req, res, next) => {
         const error = new Error('Test error for Sentry monitoring');
         error.status = 500;
         next(error);
+    });
+
+    app.get('/api/test-slow', async (req, res) => {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        res.json({ message: 'Slow endpoint for testing' });
     });
 }
 
@@ -139,37 +164,53 @@ app.use(sentryErrorMiddleware);
 // Sentry error handler (must be after all routes)
 setupSentryErrorHandler(app);
 
-// Error handling middleware
+// Final Error handling middleware
 app.use((err, req, res, next) => {
-    console.error('Error occurred:', err.stack);
+    console.error('Unhandled error:', err);
 
     const isDevelopment = process.env.NODE_ENV === 'development';
+    const status = err.status || err.statusCode || 500;
 
-    res.status(500).json({
-        message: 'Something went wrong!',
-        error: isDevelopment ? err.message : 'Internal Server Error',
-        ...(isDevelopment && { stack: err.stack }),
-        timestamp: new Date().toISOString()
+    res.status(status).json({
+        error: {
+            message: err.message || 'Internal Server Error',
+            status,
+            ...(isDevelopment && {
+                stack: err.stack,
+                details: err
+            }),
+            timestamp: new Date().toISOString(),
+            requestId: req.id
+        }
     });
 });
 
-// 404 handler - FIXED: Use proper route pattern for Express 5.x
+// 404 handler
 app.use((req, res) => {
     res.status(404).json({
-        message: 'Route not found',
-        path: req.path,
-        method: req.method,
-        timestamp: new Date().toISOString()
+        error: {
+            message: 'Route not found',
+            path: req.originalUrl,
+            method: req.method,
+            timestamp: new Date().toISOString(),
+            requestId: req.id
+        }
     });
 });
 
-app.listen(PORT, () => {
+// Start server
+const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/api/health`);
     console.log(`API endpoint: http://localhost:${PORT}/api`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Version: ${process.env.APP_VERSION || '1.0.0'}`);
+    console.log(`Security: Enhanced middleware enabled`);
+    console.log(`Performance: Monitoring enabled`);
     console.log(`Database: ${Database.getConnectionStatus()}`);
 });
+
+// Setup graceful shutdown
+setupGracefulShutdown(server);
 
 export default app;
