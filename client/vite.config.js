@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -63,7 +68,7 @@ export default defineConfig({
 
     // Define global constants
     define: {
-        __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+        __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
         __BUILD_TIME__: JSON.stringify(new Date().toISOString())
     }
 })

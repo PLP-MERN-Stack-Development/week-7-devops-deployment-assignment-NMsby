@@ -10,7 +10,7 @@ initializeSentry();
 createRoot(document.getElementById('root')).render(
     <StrictMode>
         <SentryErrorBoundary
-            fallback={({ error, resetError }) => (
+            fallback={({ error: _error, resetError }) => (
                 <div style={{
                     padding: '20px',
                     textAlign: 'center',

@@ -7,23 +7,17 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "build": "echo 'Build step for ES modules - no compilation needed'",
-
     "test": "NODE_ENV=test jest --detectOpenHandles",
     "test:watch": "npm run test -- --watch",
     "test:coverage": "npm run test -- --coverage",
     "test:db": "node scripts/test-connection.js",
-
     "lint": "eslint src --ext .js --fix",
     "lint:check": "eslint src --ext .js",
-
     "security:audit": "npm audit --audit-level=moderate",
     "security:fix": "npm audit fix",
-
     "logs:error": "tail -f logs/error.log",
     "logs:combined": "tail -f logs/combined.log",
-
     "health": "curl http://localhost:5000/api/health || echo 'Server not running'",
-
     "prod:start": "NODE_ENV=production node src/index.js",
     "prod:pm2": "pm2 start ecosystem.config.js",
     "prod:pm2:stop": "pm2 stop mern-server",
@@ -46,6 +40,7 @@
   },
   "devDependencies": {
     "eslint": "^9.33.0",
+    "globals": "^16.3.0",
     "jest": "^30.0.5",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.4"

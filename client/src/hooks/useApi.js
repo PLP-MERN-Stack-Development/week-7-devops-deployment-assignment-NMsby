@@ -10,7 +10,7 @@ export function useApi(endpoint, options = {}) {
         immediate = true,
         method = 'GET',
         dependencies = [],
-        ...requestOptions
+        ...defaultRequestOptions
     } = options;
 
     const execute = useCallback(async (customOptions = {}) => {
@@ -18,7 +18,7 @@ export function useApi(endpoint, options = {}) {
         setError(null);
 
         try {
-            const mergedOptions = { ...requestOptions, ...customOptions };
+            const mergedOptions = { ...defaultRequestOptions, ...customOptions };
             const result = await api.request(endpoint, {
                 method,
                 ...mergedOptions,
@@ -32,7 +32,7 @@ export function useApi(endpoint, options = {}) {
         } finally {
             setLoading(false);
         }
-    }, [endpoint, method, ...dependencies]);
+    }, [endpoint, method, defaultRequestOptions, ...dependencies]);
 
     useEffect(() => {
         if (immediate && method === 'GET') {

@@ -10,8 +10,8 @@ const config = {
     ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',
     ENABLE_DEBUG: import.meta.env.VITE_ENABLE_DEBUG === 'true',
 
-    // Build-time constants
-    BUILD_TIME: __BUILD_TIME__,
+    // Build-time constants (defined in vite.config.js)
+    BUILD_TIME: typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : new Date().toISOString(),
 
     // Computed values
     get IS_PRODUCTION() {

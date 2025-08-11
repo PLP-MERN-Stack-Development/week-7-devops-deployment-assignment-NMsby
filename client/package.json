@@ -9,20 +9,16 @@
     "build:analyze": "vite build --mode analyze",
     "build:staging": "vite build --mode staging",
     "build:production": "vite build --mode production",
-
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0 --fix",
     "lint:check": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:run": "vitest run",
-
     "type-check": "tsc --noEmit",
     "security:audit": "npm audit --audit-level=moderate",
     "security:fix": "npm audit fix",
-
     "clean": "rm -rf dist node_modules/.vite",
     "size-check": "npm run build && npx bundlesize",
     "serve:local": "npm run build && npm run preview"
@@ -63,7 +59,7 @@
     }
   ],
   "engines": {
-      "node": ">=22.12.0",
-      "npm": ">=11.5.1"
+    "node": ">=22.12.0",
+    "npm": ">=11.5.1"
   }
 }

@@ -34,10 +34,10 @@ vi.mock('../config/sentry.js', () => ({
 }));
 
 // Mock fetch
-global.fetch = vi.fn();
+globalThis.fetch = vi.fn();
 
 // Mock performance API
-global.performance = {
+globalThis.performance = {
     now: vi.fn(() => Date.now())
 };
 
